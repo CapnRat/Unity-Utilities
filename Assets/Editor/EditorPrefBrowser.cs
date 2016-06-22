@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Microsoft.Win32;
 using UnityEditor;
@@ -21,7 +20,7 @@ public class EditorPrefBrowser : EditorWindow
 			// Zero out margin to go to edges of window
 			HeaderBackground.margin = new RectOffset();
 
-			// 
+			// Push one point border on left and right out of the bounds of the window
 			HeaderBackground.overflow = new RectOffset(1, 1, 0, 0);
 		}
 	}
@@ -30,6 +29,9 @@ public class EditorPrefBrowser : EditorWindow
 
 	[NonSerialized]
 	private readonly SortedDictionary<string, object> m_EditorPrefsLookup = new SortedDictionary<string, object>();
+
+	[NonSerialized]
+	private IPreferenceProvider m_PrefProvider;
 
 	[SerializeField]
 	private Vector2 m_ScrollPosition = new Vector2(0f, 0f);
@@ -50,7 +52,20 @@ public class EditorPrefBrowser : EditorWindow
 
 	public void OnEnable()
 	{
-		FetchKeyValues();
+		m_PrefProvider = GetProvider ();
+
+		m_PrefProvider.FetchKeyValues(m_EditorPrefsLookup);
+	}
+
+	private IPreferenceProvider GetProvider ()
+	{
+		switch (Application.platform)
+		{
+		case RuntimePlatform.WindowsEditor:
+			return new WindowsPreferenceProvider ();
+		}
+			
+		throw new NotImplementedException (string.Format ("No IPreferenceProvider implemented for {0}.{1}", Application.platform.GetType(), Application.platform));
 	}
 
 	public void OnGUI()
@@ -89,62 +104,17 @@ public class EditorPrefBrowser : EditorWindow
 				if (IsFiltering && !valueName.ToLower().Contains(m_Filter.ToLower()))
 					continue;
 
-				// Strings are encoded as utf8 bytes
-				var bytes = value as byte[];
-				if (bytes != null)
-				{
-					string valueAsString = Encoding.UTF8.GetString(bytes);
-					EditorGUI.BeginChangeCheck();
-					string newString = EditorGUILayout.DelayedTextField(StripValueNameHash(valueName), valueAsString);
-					if (EditorGUI.EndChangeCheck())
-					{
-						value = Encoding.UTF8.GetBytes(newString);
-						break;
-					}
-				}
-				else if (value is int)
-				{
-					int valueAsInt = (int)value;
-					EditorGUI.BeginChangeCheck();
-					int newInt = EditorGUILayout.DelayedIntField(StripValueNameHash(valueName), valueAsInt);
-					if (EditorGUI.EndChangeCheck())
-					{
-						value = newInt;
-						break;
-					}
-				}
-				else
-				{
-					EditorGUILayout.LabelField(StripValueNameHash(valueName), string.Format("Unhandled Type {0}", value.GetType()));
-				}
+				EditorGUI.BeginChangeCheck();
+				m_PrefProvider.ValueField (valueName, value);
+				if(EditorGUI.EndChangeCheck())
+					break;
 			}
 
 			if (EditorGUI.EndChangeCheck())
 			{
-				SetKeyValue(valueName, value);
+				m_PrefProvider.SetKeyValue(valueName, value);
+				m_EditorPrefsLookup[valueName] = value;
 			}
-		}
-	}
-
-	private void SetKeyValue(string valueName, object newValue)
-	{
-		if (valueName == null)
-			throw new ArgumentNullException("valueName");
-
-		if (newValue == null)
-			throw new ArgumentNullException("newValue");
-
-		using (RegistryKey key = Registry.CurrentUser.OpenSubKey(kUnityRootSubKey, true))
-		{
-			if (key == null)
-				throw new KeyNotFoundException(string.Format("Failed to open sub key {0}.", kUnityRootSubKey));
-			
-			// Unity caches values, so it doesn't dip into the registry for every EditorPrefs.Get* call.
-			// This means we need to tell Unity to delete this value to remove it from the cache and force Unity to look into registry for value.
-			EditorPrefs.DeleteKey(StripValueNameHash(valueName));
-
-			key.SetValue(valueName, newValue);
-			m_EditorPrefsLookup[valueName] = key.GetValue(valueName);
 		}
 	}
 
@@ -154,7 +124,7 @@ public class EditorPrefBrowser : EditorWindow
 		{
 			// Refresh Button
 			if (GUILayout.Button("Refresh", EditorStyles.toolbarButton))
-				FetchKeyValues();
+				m_PrefProvider.FetchKeyValues(m_EditorPrefsLookup);
 
 			GUILayout.FlexibleSpace();
 
@@ -166,27 +136,5 @@ public class EditorPrefBrowser : EditorWindow
 				GUIUtility.keyboardControl = 0; 
 			}
 		}
-	}
-
-	private void FetchKeyValues()
-	{
-		using (RegistryKey key = Registry.CurrentUser.OpenSubKey(kUnityRootSubKey, false))
-		{
-			if (key == null)
-				throw new KeyNotFoundException(string.Format("Failed to open sub key {0}.", kUnityRootSubKey));
-
-			m_EditorPrefsLookup.Clear();
-
-			foreach (string keyValueName in key.GetValueNames())
-			{
-				var value = key.GetValue(keyValueName);
-				m_EditorPrefsLookup.Add(keyValueName, value);
-			}
-		}
-	}
-
-	private string StripValueNameHash(string keyValueName)
-	{
-		return keyValueName.Split(new[] { "_h" }, StringSplitOptions.None).First();
 	}
 }
