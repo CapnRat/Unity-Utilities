@@ -25,8 +25,6 @@ public class EditorPrefBrowser : EditorWindow
 		}
 	}
 
-	private const string kUnityRootSubKey = "Software\\Unity Technologies\\Unity Editor 5.x\\";
-
 	[NonSerialized]
 	private readonly SortedDictionary<string, object> m_EditorPrefsLookup = new SortedDictionary<string, object>();
 
