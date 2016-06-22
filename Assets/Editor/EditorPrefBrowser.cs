@@ -103,7 +103,7 @@ public class EditorPrefBrowser : EditorWindow
 					continue;
 
 				EditorGUI.BeginChangeCheck();
-				m_PrefProvider.ValueField (valueName, value);
+				value = m_PrefProvider.ValueField (valueName, value);
 				if(EditorGUI.EndChangeCheck())
 					break;
 			}

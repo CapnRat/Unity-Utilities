@@ -47,9 +47,8 @@ public class WindowsPreferenceProvider : IPreferenceProvider
 		}
 	}
 
-	public void ValueField(string valueName, object value)
+	public object ValueField(string valueName, object value)
 	{
-
 		// Strings are encoded as utf8 bytes
 		var bytes = value as byte[];
 		if (bytes != null)
@@ -59,7 +58,7 @@ public class WindowsPreferenceProvider : IPreferenceProvider
 			string newString = EditorGUILayout.DelayedTextField(NicifyValueName(valueName), valueAsString);
 			if (EditorGUI.EndChangeCheck())
 			{
-				value = Encoding.UTF8.GetBytes(newString);
+				return Encoding.UTF8.GetBytes(newString);
 			}
 		}
 		else if (value is int)
@@ -69,13 +68,15 @@ public class WindowsPreferenceProvider : IPreferenceProvider
 			int newInt = EditorGUILayout.DelayedIntField(NicifyValueName(valueName), valueAsInt);
 			if (EditorGUI.EndChangeCheck())
 			{
-				value = newInt;
+				return newInt;
 			}
 		}
 		else
 		{
 			EditorGUILayout.LabelField(NicifyValueName(valueName), string.Format("Unhandled Type {0}", value.GetType()));
 		}
+
+		return value;
 	}
 
 	private string NicifyValueName(string keyValueName)
