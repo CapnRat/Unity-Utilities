@@ -5,11 +5,11 @@ using Microsoft.Win32;
 using UnityEditor;
 using System.Text;
 
-public class WindowsPreferenceProvider : IPreferenceProvider
+public class WindowsPreferenceProvider : BasePreferenceProvider
 {
 	private const string kUnityRootSubKey = "Software\\Unity Technologies\\Unity Editor 5.x\\";
 
-	public void SetKeyValue(string valueName, object newValue)
+	public override void SetKeyValue(string valueName, object newValue)
 	{
 		if (valueName == null)
 			throw new ArgumentNullException("valueName");
@@ -30,7 +30,7 @@ public class WindowsPreferenceProvider : IPreferenceProvider
 		}
 	}
 
-	public void FetchKeyValues(IDictionary<string, object> prefsLookup)
+	public override void FetchKeyValues(IDictionary<string, object> prefsLookup)
 	{
 		using (RegistryKey key = Registry.CurrentUser.OpenSubKey(kUnityRootSubKey, false))
 		{
@@ -47,39 +47,7 @@ public class WindowsPreferenceProvider : IPreferenceProvider
 		}
 	}
 
-	public object ValueField(string valueName, object value)
-	{
-		// Strings are encoded as utf8 bytes
-		var bytes = value as byte[];
-		if (bytes != null)
-		{
-			string valueAsString = Encoding.UTF8.GetString(bytes);
-			EditorGUI.BeginChangeCheck();
-			string newString = EditorGUILayout.DelayedTextField(NicifyValueName(valueName), valueAsString);
-			if (EditorGUI.EndChangeCheck())
-			{
-				return Encoding.UTF8.GetBytes(newString);
-			}
-		}
-		else if (value is int)
-		{
-			int valueAsInt = (int)value;
-			EditorGUI.BeginChangeCheck();
-			int newInt = EditorGUILayout.DelayedIntField(NicifyValueName(valueName), valueAsInt);
-			if (EditorGUI.EndChangeCheck())
-			{
-				return newInt;
-			}
-		}
-		else
-		{
-			EditorGUILayout.LabelField(NicifyValueName(valueName), string.Format("Unhandled Type {0}", value.GetType()));
-		}
-
-		return value;
-	}
-
-	private string NicifyValueName(string keyValueName)
+	protected override string NicifyValueName (string keyValueName)
 	{
 		return keyValueName.Split(new[] { "_h" }, StringSplitOptions.None).First();
 	}
