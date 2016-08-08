@@ -37,6 +37,9 @@ public class EditorPrefBrowser : EditorWindow
 	[SerializeField]
 	private string m_Filter = "";
 
+	[NonSerialized]
+	private const int kLinuxEditorPlatform = 16; // RuntimePlatform.LinuxEditor on new enough codebase
+
 	private bool IsFiltering
 	{
 		get { return !string.IsNullOrEmpty(m_Filter); }
@@ -61,6 +64,8 @@ public class EditorPrefBrowser : EditorWindow
 		{
 		case RuntimePlatform.WindowsEditor:
 			return new WindowsPreferenceProvider ();
+		case (RuntimePlatform)kLinuxEditorPlatform:
+			return new LinuxPreferenceProvider ();
 		}
 			
 		throw new NotImplementedException (string.Format ("No IPreferenceProvider implemented for {0}.{1}", Application.platform.GetType(), Application.platform));
